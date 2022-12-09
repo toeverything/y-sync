@@ -13,8 +13,8 @@ readme = "./README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lib0 = "0.13"
-yrs = "0.13"
+lib0 = { path = "../y-crdt/lib0" }
+yrs = { path = "../y-crdt/yrs" }
 thiserror = "1.0"
 
 [dev-dependencies]
