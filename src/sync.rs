@@ -3,7 +3,7 @@ use crate::awareness::{Awareness, AwarenessUpdate};
 use thiserror::Error;
 use yrs::updates::decoder::{Decode, Decoder};
 use yrs::updates::encoder::{Encode, Encoder};
-use yrs::{ReadTxn, StateVector, Transact, Update};
+use yrs::{StateVector, Update};
 
 /*
  Core Yjs defines two message types:
@@ -38,6 +38,8 @@ impl Protocol for DefaultProtocol {}
 /// Trait implementing a y-sync protocol. The default implementation can be found in
 /// [DefaultProtocol], but its implementation steps can be potentially changed by the user if
 /// necessary.
+///
+/// Note: OctoBase downgraded much of y-crdt to work with older yrs
 pub trait Protocol {
     /// To be called whenever a new connection has been accepted. Returns an encoded list of
     /// messages to be send back to initiator. This binary may contain multiple messages inside,
@@ -60,7 +62,7 @@ pub trait Protocol {
         awareness: &Awareness,
         sv: StateVector,
     ) -> Result<Option<Message>, Error> {
-        let update = awareness.doc().transact().encode_state_as_update_v1(&sv);
+        let update = awareness.doc().encode_state_as_update_v1(&sv);
         Ok(Some(Message::Sync(SyncMessage::SyncStep2(update))))
     }
 
@@ -71,7 +73,7 @@ pub trait Protocol {
         awareness: &mut Awareness,
         update: Update,
     ) -> Result<Option<Message>, Error> {
-        let mut txn = awareness.doc().transact_mut();
+        let mut txn = awareness.doc().transact();
         txn.apply_update(update);
         Ok(None)
     }
@@ -322,13 +324,13 @@ mod test {
     use std::collections::HashMap;
     use yrs::updates::decoder::{Decode, DecoderV1};
     use yrs::updates::encoder::{Encode, EncoderV1};
-    use yrs::{Doc, GetString, ReadTxn, StateVector, Text, Transact};
+    use yrs::{Doc, StateVector};
 
     #[test]
     fn message_encoding() {
         let doc = Doc::new();
-        let txt = doc.get_or_insert_text("text");
-        txt.push(&mut doc.transact_mut(), "hello world");
+        let txt = doc.transact().get_text("text");
+        txt.push(&mut doc.transact(), "hello world");
         let mut awareness = Awareness::new(doc);
         awareness.set_local_state("{\"user\":{\"name\":\"Anonymous 50\",\"color\":\"#30bced\",\"colorLight\":\"#30bced33\"}}");
 
@@ -339,7 +341,6 @@ mod test {
             Message::Sync(SyncMessage::SyncStep2(
                 awareness
                     .doc()
-                    .transact()
                     .encode_state_as_update_v1(&StateVector::default()),
             )),
             Message::Awareness(awareness.update().unwrap()),
@@ -386,10 +387,11 @@ mod test {
         let mut a2 = Awareness::new(Doc::with_client_id(2));
 
         let expected = {
-            let txt = a1.doc_mut().get_or_insert_text("test");
-            let mut txn = a1.doc_mut().transact_mut();
+            let txt = a1.doc_mut().transact().get_text("test");
+            let mut txn = a1.doc_mut().transact();
             txt.push(&mut txn, "hello");
-            txn.encode_state_as_update_v1(&StateVector::default())
+            a1.doc_mut()
+                .encode_state_as_update_v1(&StateVector::default())
         };
 
         let result = protocol
@@ -409,8 +411,8 @@ mod test {
             assert!(result2.is_none());
         }
 
-        let txt = a2.doc().transact().get_text("test").unwrap();
-        assert_eq!(txt.get_string(&a2.doc().transact()), "hello".to_owned());
+        let txt = a2.doc().transact().get_text("test");
+        assert_eq!(txt.to_string(), "hello".to_owned());
     }
 
     #[test]
@@ -421,8 +423,8 @@ mod test {
         let mut a2 = Awareness::new(Doc::with_client_id(2));
 
         let data = {
-            let txt = a1.doc_mut().get_or_insert_text("test");
-            let mut txn = a1.doc_mut().transact_mut();
+            let txt = a1.doc_mut().transact().get_text("test");
+            let mut txn = a1.doc_mut().transact();
             txt.push(&mut txn, "hello");
             txn.encode_update_v1()
         };
@@ -433,8 +435,8 @@ mod test {
 
         assert!(result.is_none());
 
-        let txt = a2.doc().transact().get_text("test").unwrap();
-        assert_eq!(txt.get_string(&a2.doc().transact()), "hello".to_owned());
+        let txt = a2.doc().transact().get_text("test");
+        assert_eq!(txt.to_string(), "hello".to_owned());
     }
 
     #[test]
