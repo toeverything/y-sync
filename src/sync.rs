@@ -48,8 +48,8 @@ pub trait Protocol {
             let update = awareness.update()?;
             (sv, update)
         };
-        Message::Sync(SyncMessage::SyncStep1(sv)).encode(encoder);
-        Message::Awareness(update).encode(encoder);
+        Message::Sync(SyncMessage::SyncStep1(sv)).encode(encoder)?;
+        Message::Awareness(update).encode(encoder)?;
         Ok(())
     }
 
@@ -60,7 +60,7 @@ pub trait Protocol {
         awareness: &Awareness,
         sv: StateVector,
     ) -> Result<Option<Message>, Error> {
-        let update = awareness.doc().transact().encode_state_as_update_v1(&sv);
+        let update = awareness.doc().transact().encode_state_as_update_v1(&sv)?;
         Ok(Some(Message::Sync(SyncMessage::SyncStep2(update))))
     }
 
@@ -152,11 +152,11 @@ pub enum Message {
 }
 
 impl Encode for Message {
-    fn encode<E: Encoder>(&self, encoder: &mut E) {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), lib0::error::Error> {
         match self {
             Message::Sync(msg) => {
                 encoder.write_var(MSG_SYNC);
-                msg.encode(encoder);
+                msg.encode(encoder)?;
             }
             Message::Auth(reason) => {
                 encoder.write_var(MSG_AUTH);
@@ -172,13 +172,14 @@ impl Encode for Message {
             }
             Message::Awareness(update) => {
                 encoder.write_var(MSG_AWARENESS);
-                encoder.write_buf(&update.encode_v1())
+                encoder.write_buf(&update.encode_v1()?)
             }
             Message::Custom(tag, data) => {
                 encoder.write_u8(*tag);
                 encoder.write_buf(&data);
             }
         }
+        Ok(())
     }
 }
 
@@ -227,11 +228,11 @@ pub enum SyncMessage {
 }
 
 impl Encode for SyncMessage {
-    fn encode<E: Encoder>(&self, encoder: &mut E) {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), lib0::error::Error> {
         match self {
             SyncMessage::SyncStep1(sv) => {
                 encoder.write_var(MSG_SYNC_STEP_1);
-                encoder.write_buf(sv.encode_v1());
+                encoder.write_buf(sv.encode_v1()?);
             }
             SyncMessage::SyncStep2(u) => {
                 encoder.write_var(MSG_SYNC_STEP_2);
@@ -242,6 +243,7 @@ impl Encode for SyncMessage {
                 encoder.write_buf(u);
             }
         }
+        Ok(())
     }
 }
 
@@ -353,7 +355,8 @@ mod test {
                 awareness
                     .doc()
                     .transact()
-                    .encode_state_as_update_v1(&StateVector::default()),
+                    .encode_state_as_update_v1(&StateVector::default())
+                    .unwrap(),
             )),
             Message::Awareness(awareness.update().unwrap()),
             Message::Auth(Some("reason".to_string())),
@@ -361,7 +364,7 @@ mod test {
         ];
 
         for msg in messages {
-            let encoded = msg.encode_v1();
+            let encoded = msg.encode_v1().unwrap();
             let decoded =
                 Message::decode_v1(&encoded).expect(&format!("failed to decode {:?}", msg));
             assert_eq!(decoded, msg);
@@ -403,6 +406,7 @@ mod test {
             let mut txn = a1.doc_mut().transact_mut();
             txt.push(&mut txn, "hello");
             txn.encode_state_as_update_v1(&StateVector::default())
+                .unwrap()
         };
 
         let result = protocol
@@ -437,7 +441,7 @@ mod test {
             let txt = a1.doc_mut().get_or_insert_text("test");
             let mut txn = a1.doc_mut().transact_mut();
             txt.push(&mut txn, "hello");
-            txn.encode_update_v1()
+            txn.encode_update_v1().unwrap()
         };
 
         let result = protocol

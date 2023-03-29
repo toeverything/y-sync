@@ -330,13 +330,14 @@ pub struct AwarenessUpdate {
 }
 
 impl Encode for AwarenessUpdate {
-    fn encode<E: Encoder>(&self, encoder: &mut E) {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), lib0::error::Error> {
         encoder.write_var(self.clients.len());
         for (&client_id, e) in self.clients.iter() {
             encoder.write_var(client_id);
             encoder.write_var(e.clock);
             encoder.write_string(&e.json);
         }
+        Ok(())
     }
 }
 

@@ -24,3 +24,7 @@ futures-util = { version = "0.3", features = ["sink"], optional = true }
 tokio = { version = "1.26.0", features = ["full"] }
 tokio-util = { version ="0.7", features = ["codec"] }
 bytes = "1.4"
+
+[patch.crates-io]
+lib0 = { git = "https://github.com/toeverything/y-crdt", rev = "9dfe53c" }
+yrs = { git = "https://github.com/toeverything/y-crdt", rev = "9dfe53c" }
