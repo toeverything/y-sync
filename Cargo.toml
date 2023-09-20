@@ -1,6 +1,6 @@
 [package]
 name = "y-sync"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "Yrs synchronization protocol"
 license-file = "LICENSE"
@@ -26,5 +26,5 @@ tokio-util = { version ="0.7", features = ["codec"] }
 bytes = "1.4"
 
 [patch.crates-io]
-lib0 = { git = "https://github.com/toeverything/y-crdt", rev = "9dfe53c" }
-yrs = { git = "https://github.com/toeverything/y-crdt", rev = "9dfe53c" }
+lib0   = { git = "https://github.com/toeverything/y-crdt", rev = "a700f09" }
+yrs    = { git = "https://github.com/toeverything/y-crdt", rev = "a700f09" }
